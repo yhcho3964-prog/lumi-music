@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>LU:MI — Music Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0a0f; --bg2:#111118; --gold:#c9a84c; --gold2:#e8c97a;
+    --text:#e8e4dc; --muted:#7a7870; --border:rgba(201,168,76,0.15);
+    --player-h:88px; --lyrics-w:360px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;}
+  #app{display:flex;height:100vh;overflow:hidden;}
+
+  /* MAIN */
+  #main{flex:1;display:flex;flex-direction:column;overflow:hidden;transition:margin-right .4s cubic-bezier(.4,0,.2,1);}
+  #main.lo{margin-right:var(--lyrics-w);}
+  .scrollable{flex:1;overflow-y:auto;padding-bottom:calc(var(--player-h) + 16px);}
+  .scrollable::-webkit-scrollbar{width:4px;}
+  .scrollable::-webkit-scrollbar-thumb{background:var(--border);}
+
+  body::before{content:'';position:fixed;inset:0;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events:none;}
+
+  header{position:relative;z-index:10;padding:48px 60px 28px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-shrink:0;}
+  .brand-sub{font-family:'Cormorant Garamond',serif;font-size:11px;letter-spacing:.35em;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+  .brand-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;letter-spacing:.06em;color:var(--text);line-height:1;}
+  .brand-title em{font-style:italic;color:var(--gold2);}
+  .header-meta{text-align:right;font-size:11px;letter-spacing:.12em;color:var(--muted);line-height:1.9;}
+
+  .filter-bar{position:relative;z-index:10;padding:18px 60px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .filter-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 18px;font-family:'Noto Sans KR',sans-serif;font-size:11px;letter-spacing:.1em;cursor:pointer;transition:all .25s;}
+  .filter-btn:hover,.filter-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.06);}
+
+  .track-list{padding:12px 60px;}
+  .section-label{font-size:10px;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;padding:20px 0 12px;border-bottom:1px solid var(--border);margin-bottom:4px;display:grid;grid-template-columns:40px 1fr 160px 90px;gap:16px;}
+  .track-row{display:grid;grid-template-columns:40px 1fr 160px 90px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .2s;}
+  .track-row:hover{background:rgba(201,168,76,.04);}
+  .track-row.playing{background:rgba(201,168,76,.07);}
+  .track-row.playing .track-title-kr{color:var(--gold2);}
+  .track-num{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--muted);text-align:center;display:flex;align-items:center;justify-content:center;}
+  .playing-anim{display:none;gap:2px;align-items:flex-end;height:16px;}
+  .track-row.playing .num-label{display:none;}
+  .track-row.playing .playing-anim{display:flex;}
+  .bar{width:3px;background:var(--gold);border-radius:1px;animation:bounce .8s ease-in-out infinite alternate;}
+  .bar:nth-child(1){height:8px;animation-delay:0s}.bar:nth-child(2){height:14px;animation-delay:.15s}.bar:nth-child(3){height:10px;animation-delay:.3s}.bar:nth-child(4){height:16px;animation-delay:.1s}
+  @keyframes bounce{from{transform:scaleY(.4)}to{transform:scaleY(1)}}
+  .track-info{min-width:0;}
+  .track-title-kr{font-size:15px;font-weight:400;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
+  .track-title-en{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--muted);}
+  .track-tags{display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{font-size:10px;letter-spacing:.08em;padding:3px 9px;border:1px solid var(--border);color:var(--muted);white-space:nowrap;}
+  .track-duration{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--muted);text-align:right;padding-right:8px;}
+
+  /* PLAYER */
+  #player-bar{position:fixed;bottom:0;left:0;right:0;height:var(--player-h);background:rgba(10,10,15,.97);border-top:1px solid var(--border);backdrop-filter:blur(20px);z-index:200;display:flex;flex-direction:column;justify-content:center;padding:0 40px;gap:8px;transition:right .4s cubic-bezier(.4,0,.2,1);}
+  #player-bar.lo{right:var(--lyrics-w);}
+  .player-row1{display:flex;align-items:center;gap:16px;}
+  .player-row2{display:flex;align-items:center;gap:10px;}
+  .player-info{flex:1;min-width:0;}
+  .player-title{font-size:14px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+  .player-title-en{font-family:'Cormorant Garamond',serif;font-size:12px;font-style:italic;color:var(--muted);}
+  .player-controls{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+  .ctrl-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;transition:color .2s;line-height:1;padding:4px;}
+  .ctrl-btn:hover{color:var(--gold);}
+  .ctrl-btn.play-pause{width:42px;height:42px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;}
+  .ctrl-btn.play-pause:hover{border-color:var(--gold);background:rgba(201,168,76,.08);color:var(--gold);}
+  .player-progress-wrap{flex:2;display:flex;align-items:center;gap:12px;}
+  .time-label{font-size:11px;color:var(--muted);min-width:36px;}
+  .progress-track{flex:1;height:2px;background:rgba(255,255,255,.1);cursor:pointer;}
+  .progress-fill{height:100%;background:var(--gold);width:0%;transition:width .3s linear;position:relative;}
+  .progress-fill::after{content:'';position:absolute;right:-4px;top:-3px;width:8px;height:8px;background:var(--gold2);border-radius:50%;opacity:0;transition:opacity .2s;}
+  .progress-track:hover .progress-fill::after{opacity:1;}
+  .volume-wrap{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  input[type=range]{-webkit-appearance:none;width:80px;height:2px;background:rgba(255,255,255,.15);cursor:pointer;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--gold);border-radius:50%;}
+  .mode-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 11px;font-family:'Noto Sans KR',sans-serif;font-size:10px;letter-spacing:.06em;cursor:pointer;transition:all .25s;flex-shrink:0;white-space:nowrap;}
+  .mode-btn:hover{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.06);}
+  .mode-btn.active{border-color:var(--gold2);color:var(--gold2);background:rgba(201,168,76,.12);}
+  .lyrics-toggle-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 11px;font-family:'Noto Sans KR',sans-serif;font-size:10px;letter-spacing:.08em;cursor:pointer;transition:all .25s;flex-shrink:0;}
+  .lyrics-toggle-btn:hover,.lyrics-toggle-btn.active{border-color:var(--gold);color:var(--gold2);background:rgba(201,168,76,.08);}
+
+  /* LYRICS PANEL */
+  #lyrics-panel{position:fixed;top:0;right:0;width:var(--lyrics-w);height:calc(100vh - var(--player-h));background:var(--bg2);border-left:1px solid var(--border);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);}
+  #lyrics-panel.open{transform:translateX(0);}
+  .lyrics-header{padding:28px 28px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .lyrics-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .lyrics-label{font-size:10px;letter-spacing:.32em;color:var(--gold);text-transform:uppercase;}
+  .lyrics-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;transition:color .2s;padding:2px 6px;}
+  .lyrics-close:hover{color:var(--text);}
+  .lyrics-track-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lyrics-track-sub{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:var(--muted);}
+  .lang-tabs{display:flex;border:1px solid var(--border);margin-top:18px;overflow:hidden;}
+  .lang-tab{flex:1;background:none;border:none;padding:9px 0;font-family:'Noto Sans KR',sans-serif;font-size:11px;letter-spacing:.1em;color:var(--muted);cursor:pointer;transition:all .2s;border-right:1px solid var(--border);}
+  .lang-tab:last-child{border-right:none;}
+  .lang-tab:hover{color:var(--text);background:rgba(255,255,255,.03);}
+  .lang-tab.active{background:rgba(201,168,76,.1);color:var(--gold2);}
+  .lyrics-body{flex:1;overflow-y:auto;padding:28px;}
+  .lyrics-body::-webkit-scrollbar{width:3px;}
+  .lyrics-body::-webkit-scrollbar-thumb{background:var(--border);}
+  .lyric-verse{margin-bottom:28px;}
+  .lyric-section-tag{font-size:9px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;display:block;margin-bottom:8px;}
+  .lyric-line{font-size:14px;line-height:2.1;color:var(--text);font-weight:300;}
+  .lyric-line.en{font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:#d0ccc4;}
+  .lyric-line.es{color:#ccc8bf;}
+  .no-lyrics{color:var(--muted);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;text-align:center;margin-top:60px;line-height:2.2;}
+  #hidden-video{display:none;}
+
+  @media(max-width:900px){
+    :root{--lyrics-w:100vw; --player-h:110px;}
+
+    /* 헤더 */
+    header{padding:28px 20px 18px;}
+    .brand-title{font-size:28px;}
+    .header-meta{font-size:10px;}
+
+    /* 필터바 - 가로 스크롤 */
+    .filter-bar{padding:12px 20px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:8px;}
+    .filter-bar::-webkit-scrollbar{display:none;}
+    .filter-btn{padding:7px 14px;font-size:11px;flex-shrink:0;}
+
+    /* 트랙 리스트 */
+    .track-list{padding:8px 20px;}
+    .section-label{grid-template-columns:36px 1fr 70px;font-size:9px;}
+    .section-label>:nth-child(3){display:none;}
+    .track-row{grid-template-columns:36px 1fr 70px;padding:16px 0;gap:12px;}
+    .track-row .track-tags{display:none;}
+    .track-title-kr{font-size:14px;}
+    .track-title-en{font-size:12px;}
+    .track-duration{font-size:14px;}
+    .track-num{font-size:16px;}
+
+    /* 플레이어 바 */
+    #player-bar{padding:10px 16px;gap:6px;}
+    #player-bar.lo{right:0;}
+
+    /* 1행: 곡정보 + 컨트롤 */
+    .player-row1{gap:10px;}
+    .player-info{flex:1;min-width:0;}
+    .player-title{font-size:13px;}
+    .player-title-en{font-size:11px;}
+
+    /* 컨트롤 버튼 터치 타겟 확대 */
+    .ctrl-btn{font-size:16px;padding:6px;}
+    .ctrl-btn.play-pause{width:40px;height:40px;}
+
+    /* 모드/가사 버튼 */
+    .mode-btn{padding:6px 9px;font-size:10px;}
+    .lyrics-toggle-btn{padding:6px 9px;font-size:10px;}
+
+    /* 2행: 프로그레스 + 볼륨 */
+    .player-row2{gap:8px;}
+    .time-label{font-size:10px;min-width:30px;}
+    .volume-wrap input[type=range]{width:60px;}
+
+    /* 가사 패널 - 풀스크린 */
+    #lyrics-panel{width:100vw;height:calc(100vh - var(--player-h));}
+    #main.lo{margin-right:0;}
+    .lyrics-header{padding:20px 20px 14px;}
+    .lyrics-track-name{font-size:17px;}
+    .lyrics-body{padding:20px;}
+    .lyric-line{font-size:15px;line-height:2.2;}
+    .lyric-line.en{font-size:16px;}
+    .lang-tab{font-size:12px;padding:10px 0;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="main">
+    <div class="scrollable">
+      <header>
+        <div>
+          <div class="brand-sub">Personal Music Library</div>
+          <div class="brand-title">LU<em>:</em>MI</div>
+        </div>
+        <div class="header-meta">
+          <div>10 Tracks · 2025</div>
+          <div style="color:var(--gold);margin-top:4px;">Spring Collection</div>
+        </div>
+      </header>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterTracks('all',this)">ALL</button>
+        <button class="filter-btn" onclick="filterTracks('k-indie',this)">K-인디</button>
+        <button class="filter-btn" onclick="filterTracks('ballad',this)">발라드</button>
+        <button class="filter-btn" onclick="filterTracks('jazz',this)">재즈</button>
+        <button class="filter-btn" onclick="filterTracks('neo-classical',this)">네오클래시컬</button>
+        <button class="filter-btn" onclick="filterTracks('j-indie',this)">J-인디</button>
+        <button class="filter-btn" onclick="filterTracks('world',this)">월드뮤직</button>
+      </div>
+      <div class="track-list">
+        <div class="section-label"><span>#</span><span>TITLE</span><span>GENRE</span><span style="text-align:right;padding-right:8px;">TIME</span></div>
+        <div id="track-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lyrics-panel">
+    <div class="lyrics-header">
+      <div class="lyrics-header-top">
+        <span class="lyrics-label">가사 · Lyrics</span>
+        <button class="lyrics-close" onclick="closeLyrics()">✕</button>
+      </div>
+      <div class="lyrics-track-name" id="lp-title">—</div>
+      <div class="lyrics-track-sub"  id="lp-sub"></div>
+      <div class="lang-tabs">
+        <button class="lang-tab active" onclick="switchLang('ko',this)">한국어</button>
+        <button class="lang-tab"       onclick="switchLang('es',this)">Español</button>
+        <button class="lang-tab"       onclick="switchLang('en',this)">English</button>
+      </div>
+    </div>
+    <div class="lyrics-body" id="lyrics-body">
+      <div class="no-lyrics">곡을 선택하면<br>가사가 표시됩니다</div>
+    </div>
+  </div>
+</div>
+
+<video id="hidden-video" preload="none"></video>
+
+<div id="player-bar">
+  <!-- 1행: 곡정보 + 컨트롤 + 모드버튼 + 가사 -->
+  <div class="player-row1">
+    <div class="player-info">
+      <div class="player-title"    id="player-title">—</div>
+      <div class="player-title-en" id="player-title-en">Select a track to play</div>
+    </div>
+    <div class="player-controls">
+      <button class="ctrl-btn" onclick="prevTrack()">&#9664;&#9664;</button>
+      <button class="ctrl-btn play-pause" id="play-btn" onclick="togglePlay()">&#9654;</button>
+      <button class="ctrl-btn" onclick="nextTrack()">&#9654;&#9654;</button>
+    </div>
+    <button class="mode-btn" id="play-all-btn" onclick="playAll()">▶ 전체재생</button>
+    <button class="mode-btn" id="repeat-btn"   onclick="toggleRepeat()">↺ 반복</button>
+    <button class="lyrics-toggle-btn" id="lyrics-toggle-btn" onclick="toggleLyrics()">가사 보기</button>
+  </div>
+  <!-- 2행: 프로그레스바 + 볼륨 -->
+  <div class="player-row2">
+    <span class="time-label" id="time-cur">0:00</span>
+    <div class="progress-track" style="flex:1" onclick="seekTo(event)">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <span class="time-label" id="time-total">0:00</span>
+    <div class="volume-wrap">
+      <span style="color:var(--muted);font-size:13px;">♪</span>
+      <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.8" oninput="setVolume(this.value)">
+    </div>
+  </div>
+</div>
+
+<script>
+const TRACKS = [
+  {
+    num:1, titleKr:"분홍 가랑비", titleEn:"Pink Rain",
+    duration:"3:52", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/1.Pink.Rain.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["온 세상이 분홍으로 물든 날","가랑비가 꽃잎에 나부끼며","함께 번지는 이 거리가","눈에 가득 담기도 어려울 만큼 아름다워"]},
+        {section:"2절",lines:["이런 날엔, 가끔 네 생각이 나","누군가의 가장 무거운 밤을 날마다 받아내면서도","조용히, 단단하게 서 있던 사람","그 무게가 얼마나 쓸쓸했을지","한때 그 앞에 울었던 나는, 조금 알아"]},
+        {section:"후렴",lines:["꽃비가 내린다","바람도 없는데 흩어지는 꽃잎처럼","아름다운 걸 가장 말없이 감당하는 사람","왠지 오늘, 네가 자꾸 겹쳐"]},
+        {section:"브리지",lines:["고마워","판단하지 않고, 서두르지 않고","끝까지 들어줘서","그리고 지금은, 그냥 오래된 친구로 있어줘서","이 봄처럼, 그게 참 다행이야"]},
+        {section:"아웃트로",lines:["꽃잎이 가랑비에 젖어 내려앉는 오늘","너도 잠깐은, 그냥 이 풍경 속에 있어도 돼","아무 마음도 돌보지 않아도 되는","그런 봄날이길"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["El día en que el mundo entero se tiñó de rosa","La lluvia fina danza entre los pétalos","Esta calle que florece con nosotros","Tan bella que apenas cabe en mis ojos"]},
+        {section:"Verso 2",lines:["En días así, a veces pienso en ti","El que se mantenía firme y callado","Cargando cada noche las noches más pesadas de todos","Cuán solitario debió ser ese peso","Yo, que alguna vez lloré ante ti — sé algo de eso"]},
+        {section:"Estribillo",lines:["Llueve flores","Como pétalos que se dispersan sin viento","El que soporta en silencio las cosas más bellas","Hoy, por alguna razón, sigues superponiéndote"]},
+        {section:"Puente",lines:["Gracias","Por no juzgar, por no apresurarte","Por escuchar hasta el final","Y por quedarte ahora, simplemente como un viejo amigo","Como esta primavera — cuánto me alegra eso"]},
+        {section:"Outro",lines:["Hoy los pétalos se mojan en la llovizna y caen","Tú también, por un momento, puedes estar dentro de este paisaje","Una tarde de primavera","donde no necesitas cuidar ningún corazón"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["The day the whole world turned pink","A drizzle drifts among the petals","This street blooming together with us","So beautiful it can barely be held in my eyes"]},
+        {section:"Verse 2",lines:["On days like this, I sometimes think of you","The one who silently stood firm","Carrying everyone's heaviest nights day after day","How lonely that weight must have been","I who once cried before you — I know, a little"]},
+        {section:"Chorus",lines:["A shower of blossoms falls","Like petals scattered without any wind","The one who bears the beautiful things most quietly","Today somehow, you keep overlapping with the scene"]},
+        {section:"Bridge",lines:["Thank you","For not judging, not rushing","For listening all the way through","And for now, just being my old friend","Like this spring — I'm so grateful for that"]},
+        {section:"Outro",lines:["Today, petals soak in the drizzle and settle down","You too, just for a moment, can be inside this scenery","A spring day where you don't need","to tend to any heart but your own"]}
+      ]
+    }
+  },
+  {
+    num:2, titleKr:"벚꽃 하루 엔딩", titleEn:"Flower Ending",
+    duration:"4:10", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/2.Flower.Ending.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["창문 너머 벚꽃이 흐드러진 날","가랑비가 유리를 조용히 두드린다","오늘도 참 많이 힘들었지","잘 했어, 수고했어"]},
+        {section:"2절",lines:["내 뜻대로 되는 날이 며칠이나 됐을까","웃으면서 버텼고, 버티면서 살았고","그게 우리가 살아가는 방식이잖아","어쩌면, 그게 우리라는 거잖아"]},
+        {section:"후렴",lines:["벚꽃잎이 온 세상을 덮어주는 밤","봄 내음이 창틈으로 스며드는 이 순간만큼은","아무것도 잘 하지 않아도 돼","그냥, 눈 감아도 돼"]},
+        {section:"브리지",lines:["다 잘 될 거야, 아마도","아니어도 괜찮아, 어쩌면","작은 것들 속에 분명히 있어","오늘 하루가 남긴 따뜻한 것들이"]},
+        {section:"아웃트로",lines:["봄비가 꽃잎을 적시듯","이 밤이 너를 살며시 덮어주길","내일은 또 달리면 되니까","오늘 밤만큼은,","그냥 잠들어도 돼"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["El día en que los cerezos florecen más allá de la ventana","La lluvia fina golpea suavemente el cristal","Hoy también fue muy difícil","Lo hiciste bien — trabajaste tanto"]},
+        {section:"Verso 2",lines:["¿Cuántos días salieron como yo quería?","Sonreí y aguanté, aguanté y viví","Así es como seguimos adelante","Quizás eso es lo que somos"]},
+        {section:"Estribillo",lines:["La noche en que los pétalos de cerezo cubren el mundo entero","En este momento en que el aroma de primavera se cuela por las grietas","No tienes que hacer nada bien","Solo, está bien cerrar los ojos"]},
+        {section:"Puente",lines:["Todo saldrá bien, probablemente","Aunque no, está bien, tal vez","Seguro que está ahí en alguna pequeña cosa","Las cosas cálidas que el día de hoy ha dejado atrás"]},
+        {section:"Outro",lines:["Igual que la lluvia de primavera empapa los pétalos","Que esta noche te cubra suavemente","Mañana puedes correr de nuevo","Pero solo por esta noche,","está bien que simplemente te duermas"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["The day cherry blossoms tumble beyond the window","A drizzle taps quietly on the glass","Today was so very hard again","You did well — you worked so hard"]},
+        {section:"Verse 2",lines:["How many days actually went the way I wanted?","I smiled and endured, endured and lived","That's just the way we carry on","Maybe, that's what we are"]},
+        {section:"Chorus",lines:["The night cherry petals cover the whole world","In this moment when the scent of spring seeps through the cracks","You don't have to do anything well","Just, it's okay to close your eyes"]},
+        {section:"Bridge",lines:["It'll all work out, probably","Even if not, that's okay, maybe","It's surely there somewhere in the small things","The warm things today has left behind"]},
+        {section:"Outro",lines:["Just as spring rain soaks the petals","May this night gently cover you","Tomorrow you can run again","But just for tonight,","it's okay to just fall asleep"]}
+      ]
+    }
+  },
+  {
+    num:3, titleKr:"나의 오아시스", titleEn:"My Oasis",
+    duration:"3:38", tags:["neo-classical","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/3.My.Oasis.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["뜨겁고 긴 하루였다","아무도 내 속을 들여다보지 않는","메마른 사막 같은 곳에서","나는 또 혼자 타들어갔다"]},
+        {section:"2절",lines:["맞춰가려 했고, 이해받으려 했고","웃어야 할 자리에서 웃었고","그러다 문득 알아버렸어","나를 잃어가고 있다는 걸"]},
+        {section:"후렴",lines:["그때, 가랑비가 내렸다","아무 예고도 없이","메말랐던 땅 위로","조용하고 서늘하게"]},
+        {section:"브리지",lines:["봐, 틈 사이로 새싹이 돋고 있어","아무도 심지 않았는데","스스로, 그냥, 피어나고 있어","그게 나인 것 같았어"]},
+        {section:"3절",lines:["남들이 몰라줘도 괜찮아","다 맞춰줄 필요 없어","이 빗속에서 혼자 젖어도","나는 나대로 자라고 있으니까"]},
+        {section:"아웃트로",lines:["사막이었던 곳에 이제 초록이 번진다","봄비 한 줄기가 오아시스를 만들 듯","나를 사랑하는 일이, 그렇게 시작됐어","오늘도 가랑비가 내린다","이 빗소리가 내 편인 것 같아","세상이 나를 몰라도","나만큼은, 나를 알아줄게"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["Fue un día largo y ardiente","En un lugar seco como el desierto","Donde nadie mira dentro de mí","Volví a arder sola"]},
+        {section:"Verso 2",lines:["Intenté encajar, intenté ser comprendida","Sonreí donde debía sonreír","Y de repente me di cuenta","Me estaba perdiendo a mí misma"]},
+        {section:"Estribillo",lines:["Entonces cayó una llovizna","Sin ningún aviso","Sobre la tierra reseca","Silenciosa y fresca"]},
+        {section:"Puente",lines:["Mira — un brote crece entre las grietas","Nadie lo plantó","Solo, simplemente, florece","Eso me parecía yo"]},
+        {section:"Verso 3",lines:["Está bien que otros no comprendan","No necesito acomodarme a todos","Aunque me moje sola en esta lluvia","Estoy creciendo a mi manera"]},
+        {section:"Outro",lines:["Donde antes había un desierto, ahora se extiende el verde","Como una sola lluvia de primavera creando un oasis","Amarme a mí misma — así comenzó","Hoy también cae una llovizna","Este sonido de lluvia parece estar de mi parte","Aunque el mundo no me conozca","Al menos yo — me conoceré"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["It was a hot and long day","In a dry desert-like place","Where no one looks inside me","I burned alone again"]},
+        {section:"Verse 2",lines:["I tried to fit in, tried to be understood","Smiled in the places I was supposed to smile","And then I suddenly realized","I was losing myself"]},
+        {section:"Chorus",lines:["Then, a drizzle fell","Without any warning","Over the parched earth","Quiet and cool"]},
+        {section:"Bridge",lines:["Look — a sprout is growing through the cracks","No one planted it","On its own, just, blooming","That felt like me"]},
+        {section:"Verse 3",lines:["It's okay if others don't understand","I don't need to accommodate everyone","Even soaking alone in this rain","I am growing in my own way"]},
+        {section:"Outro",lines:["Where there was desert, green is now spreading","Like a single spring rain making an oasis","Loving myself — that's how it began","A drizzle falls again today","This sound of rain feels like it's on my side","Even if the world doesn't know me","At least I — will know myself"]}
+      ]
+    }
+  },
+  {
+    num:4, titleKr:"4월의 재회", titleEn:"April Reunion",
+    duration:"4:05", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/4.4.April.Reunion.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["벚꽃잎이 흐르던 4월 어느 오후","햇살이 꽃잎처럼 흩날리던 그 길목에서","우리는 다시, 아무렇지 않게 만났지","그때 참 철없었지"]},
+        {section:"2절",lines:["작은 말 한마디에 상처 주고","아무것도 아닌 일로 등 돌렸던 우리가","지금 생각하면 웃음이 나다가도","어딘가 마음 한 켠이 시려와"]},
+        {section:"후렴",lines:["근데 있잖아","오랜 시간이 흘렀는데도","너희는 여전히 그 눈빛으로 웃어줬어","아무것도 따지지 않고","그냥, 반가워하고"]},
+        {section:"브리지",lines:["서로 마음의 높이를 맞추게 돼","그 미소 하나에","그동안 쌓인 것들이 다 녹아버렸어","말하지 않아도 전해지는 게 있더라","오래된 사이만이 아는 온도 같은 게"]},
+        {section:"아웃트로",lines:["벚꽃이 지고 나면 또 일상으로 돌아가겠지만","오늘 이 봄날만큼은","너희가 내 곁에 있어줘서","참, 고마워"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["Una tarde de abril en que los pétalos de cerezo flotaban","En ese cruce donde la luz del sol se dispersaba como flores","Volvimos a encontrarnos, como si nada hubiera pasado","Qué inmaduros éramos entonces"]},
+        {section:"Verso 2",lines:["Hiriéndonos con una sola palabra descuidada","Dándonos la espalda por nada","Ahora me hace sonreír, al pensarlo","Y aun así, en algún rincón del corazón, algo se enfría"]},
+        {section:"Estribillo",lines:["Pero ¿sabes qué?","Aun después de todo este tiempo","Todavía me sonreíste con esos mismos ojos","Sin cuestionar nada","Simplemente, contento de verme"]},
+        {section:"Puente",lines:["Encontramos el mismo nivel en nuestros corazones","Con solo esa sonrisa","Todo lo que se había acumulado se derritió","Hay algo que se transmite sin palabras","Una calidez que solo conocen los amigos de siempre"]},
+        {section:"Outro",lines:["Cuando caigan las flores, volveremos a nuestra vida cotidiana","Pero por este día de primavera","Por tenerte a tu lado","Estoy verdaderamente agradecido"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["One afternoon in April when cherry blossom petals drifted","At that crossroads where sunlight scattered like flowers","We met again, as if nothing had happened","We were so young and foolish back then"]},
+        {section:"Verse 2",lines:["Hurting each other with a single careless word","Turning our backs over nothing at all","Now it makes me smile, thinking about it","And yet somewhere, a corner of my heart goes cold"]},
+        {section:"Chorus",lines:["But you know what","Even after all this time","You still smiled at me with those same eyes","Without questioning anything","Just, simply glad to see me"]},
+        {section:"Bridge",lines:["We fall into step with each other's hearts","With just that one smile","Everything that had piled up melted away","There's something that gets through without words","A warmth only old friends know"]},
+        {section:"Outro",lines:["When the blossoms fall we'll go back to our everyday lives","But for today, this spring day","Having you by my side","I'm truly, truly grateful"]}
+      ]
+    }
+  },
+  {
+    num:5, titleKr:"연두빛 날개", titleEn:"Green Wings",
+    duration:"3:45", tags:["k-indie"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/5.Green.Wings.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["문득 창밖을 보니","세상이 연두빛으로 변해가","꽃들이 아무 약속도 없이","마음 어딘가 살며시 피어나"]},
+        {section:"2절",lines:["혼자였던 시간 속에","스스로를 더 좋아하게 되었어","몰랐을거야, 그날의 너도","충분히 잘 하고 있었다는 걸"]},
+        {section:"후렴",lines:["조용히 니 작은 공간에서","작은 것들을 하나씩 쌓아왔어","남들 눈엔 보이지 않아도","너는 알아, 그게 전부 너라는 걸"]},
+        {section:"3절",lines:["봄바람이 등을 밀어줄 때","비로소 감춰왔던 날개를 펼쳐","더 높이, 더 멀리","더 커다란 니가 너를 부른다"]},
+        {section:"브리지",lines:["이 바람이 어디서 왔는지","왜 지금인지 몰라도 괜찮아","그냥 느껴지는 이 감각대로","한 발 더, 그냥 내딛어볼래","구름 너머 뭐가 있을지","아직 몰라도 괜찮아","이 설렘이, 이 노래가","너를 점점 더 높이 데려갈 테니"]},
+        {section:"아웃트로",lines:["두려움도 바람이 되고","흔들림도 날갯짓이 되어","온 세상이 발아래 펼쳐지는 그날을 향해","떨려도 괜찮아, 높아도 괜찮아","이미 넌 충분히 준비됐으니","봄이 왔어 — 우리, 이제 날아볼래"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["Mirando por la ventana de repente","El mundo se vuelve verde amarillento","Las flores brotan sin cita previa","Suavemente, en algún lugar del corazón"]},
+        {section:"Verso 2",lines:["En el tiempo pasado a solas","Aprendí a quererme más","Probablemente no lo sabías — ni tú de aquel entonces","Que ya lo estabas haciendo suficientemente bien"]},
+        {section:"Estribillo",lines:["En silencio, en tu pequeño espacio","Has ido apilando pequeñas cosas una a una","Aunque otros no puedan verlo","Tú sabes — eso eres tú en su totalidad"]},
+        {section:"Verso 3",lines:["Cuando la brisa primaveral empuja tu espalda","Por fin despliega las alas que has estado escondiendo","Más alto, más lejos","Un tú más grande te llama"]},
+        {section:"Puente",lines:["De dónde vino este viento","Por qué ahora — no necesitas saberlo","Solo sigue la sensación que sientes","Da un paso más, solo inténtalo","Qué hay más allá de las nubes","Todavía no tienes que saberlo","Esta emoción, esta canción","Te llevará cada vez más alto"]},
+        {section:"Outro",lines:["El miedo se convierte en viento","Y el temblor se convierte en aleteo","Hacia el día en que el mundo entero se extienda a tus pies","Está bien temblar, está bien estar alto","Ya estás suficientemente preparado","Ha llegado la primavera — ¿volamos ahora?"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["Looking out the window suddenly","The world is turning yellow-green","Flowers bloom without any appointment","Softly, somewhere in the heart"]},
+        {section:"Verse 2",lines:["In the time spent alone","I came to like myself more","You probably didn't know — not even you back then","That you were already doing well enough"]},
+        {section:"Chorus",lines:["Quietly, in your small space","You've been stacking small things one by one","Even if others can't see it","You know — that's all you"]},
+        {section:"Verse 3",lines:["When the spring breeze pushes at your back","You finally spread the wings you've been hiding","Higher, further","A bigger you is calling out to you"]},
+        {section:"Bridge",lines:["Where this wind came from","Why it's now — you don't need to know","Just follow the feeling you feel","Take one more step, just try it","What's beyond the clouds","You don't have to know yet","This excitement, this song","Will carry you higher and higher"]},
+        {section:"Outro",lines:["Fear becomes wind","And trembling becomes the beat of wings","Toward the day when the whole world spreads below your feet","It's okay to tremble, it's okay to be high up","You're already ready enough","Spring has come — shall we fly now?"]}
+      ]
+    }
+  },
+  {
+    num:6, titleKr:"4월의 흔적", titleEn:"April Memory",
+    duration:"3:12", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/6.4.April.Memory.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["일기장을 펼쳤어","네 이름이 남아 있더라","그때 왜 그 말을 못 했을까","페이지에 후회가 배어있어"]},
+        {section:"2절",lines:["하고 싶었던 말들이","입술 어딘가에 굳어버렸지","웃고 돌아섰던 날들이","지금은 제일 아파"]},
+        {section:"후렴",lines:["아름다운 것들은","왜 늘 먼저 떠나는 걸까","손에 쥐려하는 순간","이미 사라지고 없어"]},
+        {section:"3절",lines:["그때는 미처 몰랐어","평범하던 하루가","그렇게 찬란한 시간인 줄을","지나서야 가슴이 알아"]},
+        {section:"브리지",lines:["거울속 얼굴이 달라","그때의 눈빛이 아냐","근데 더 많이 변한 건","이 마음인 것 같아","뜨거웠던 게 언제였는지","설레던 게 어디 갔는지","무뎌진 건지 성숙한 건지","아직 잘 모르겠어"]},
+        {section:"아웃트로",lines:["4월이 오면","함께 있던 자리가 보여","말 못 했던 것들이","꽃잎처럼 흩어지고","떠난 것들이 가르쳐준 거야","지금 이 순간 여기 있다는 게","얼마나 찬란한 일인지를","4월은 매번, 그렇게 와"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["Abrí mi diario","Tu nombre seguía ahí","¿Por qué no pude decir esas palabras entonces?","El arrepentimiento ha empapado las páginas"]},
+        {section:"Verso 2",lines:["Las cosas que quería decir","Se endurecieron en algún lugar de mis labios","Los días en que sonreí y me di la vuelta","Son los que más duelen ahora"]},
+        {section:"Estribillo",lines:["¿Por qué las cosas bellas","Siempre se van primero?","En el momento en que intento aferrarme","Ya han desaparecido"]},
+        {section:"Verso 3",lines:["No me di cuenta entonces","De que un día ordinario","Podía ser un tiempo tan brillante","El corazón solo lo sabe después de que ha pasado"]},
+        {section:"Puente",lines:["El rostro en el espejo es diferente","No son los ojos que tenía entonces","Pero lo que ha cambiado aún más","Debe ser este corazón mío","¿Cuándo fue que ardí?","¿Adónde fue el aleteo?","Si me he vuelto insensible o he madurado","Todavía no sé bien"]},
+        {section:"Outro",lines:["Cuando llega abril","Puedo ver los lugares donde estuvimos juntos","Las cosas que no pude decir","Se dispersan como pétalos","Lo que se fue me enseñó esto —","Que estar aquí, en este preciso momento","Es algo tan brillante","Abril viene, cada vez, así"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["I opened my diary","Your name was still there","Why couldn't I say those words then?","Regret has soaked into the pages"]},
+        {section:"Verse 2",lines:["The things I wanted to say","Hardened somewhere on my lips","The days I smiled and turned away","Those hurt the most now"]},
+        {section:"Chorus",lines:["Why do beautiful things","Always leave first?","The moment I try to hold on","They're already gone"]},
+        {section:"Verse 3",lines:["I didn't realize it then","That an ordinary day","Could be such a brilliant time","The heart only knows after it's passed"]},
+        {section:"Bridge",lines:["The face in the mirror is different","Not the eyes I had then","But the thing that's changed even more","Must be this heart of mine","When was it that I burned?","Where did the flutter go?","Whether I've grown numb or grown up","I still don't quite know"]},
+        {section:"Outro",lines:["When April comes","I can see the places we were together","The things I couldn't say","Scatter like petals","What left taught me this —","That being here, in this very moment","Is how brilliant a thing it is","April comes, every time, like that"]}
+      ]
+    }
+  },
+  {
+    num:7, titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Jazz)",
+    duration:"3:20", tags:["jazz"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/7.5.The.First.Scent.of.May_Jazz.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["봄비가 내리네","여긴 생각보다 차가워","근데 우산 없이도","왠지 즐거워보여"]},
+        {section:"2절",lines:["젖은 거리 위로","웃음이 흐르고","그 속에 섞인 나는","이 거리가 포근해"]},
+        {section:"후렴",lines:["여기여서 인지","봄이어서 인지","아니면, 그냥","오늘이어서인지","좋은 사람 곁에선","봄이 좀더 봄같아","오늘이 어제보다","무척 따뜻했어"]},
+        {section:"3절",lines:["빗소리 사이로","니 목소리가 들려","아무 말 아닌데","자꾸 귀 기울이게 돼","젖어도 괜찮아","이 순간이 좋으니까","잠깐 멈춰도 돼","딱 이만큼만"]},
+        {section:"브리지",lines:["외롭지만 함께하는 밤,","쏟아지는 계절 위에","널 위한 작은 우산이","펼쳐지려 해","말하지 않아도","같은 걸 보고 있어","보이지 않아도","같은 소리가 나와"]},
+        {section:"아웃트로",lines:["이 비가 그치면","또 다른 하늘이 오겠지","근데 오늘 이 비가","오히려 좋아","기다려온 시간,","도쿄 밤공기처럼","우리의 봄은","더 짙어질거야"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["La lluvia de primavera cae","Aquí hace más frío de lo que pensaba","Pero incluso sin paraguas","Por alguna razón, parece alegría"]},
+        {section:"Verso 2",lines:["Sobre las calles mojadas","La risa fluye","Y yo mezclado allí","Esta calle se siente cálida"]},
+        {section:"Estribillo",lines:["¿Es por este lugar?","¿Porque es primavera?","¿O quizás","Solo porque es hoy?","Al lado de una buena persona","La primavera parece más primavera","Hoy fue tan mucho más cálido","Que ayer"]},
+        {section:"Verso 3",lines:["Entre el sonido de la lluvia","Puedo escuchar tu voz","No estás diciendo nada","Y sin embargo sigo inclinando el oído","Mojarse está bien","Porque este momento es tan bueno","Puedes parar por un momento","Solo esto"]},
+        {section:"Puente",lines:["Una noche solitaria pero juntos","Sobre una estación que se derrama","Un pequeño paraguas para ti","Está a punto de abrirse","Sin decir nada","Estamos mirando lo mismo","Aunque no se vea","El mismo sonido sale"]},
+        {section:"Outro",lines:["Cuando esta lluvia pare","Vendrá otro cielo","Pero la lluvia de hoy","Me gusta incluso más","El tiempo que hemos esperado","Como el aire nocturno de Tokio","Nuestra primavera","Solo se volverá más profunda"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["Spring rain is falling","It's colder here than I thought","But even without an umbrella","Somehow it looks like joy"]},
+        {section:"Verse 2",lines:["Over the wet streets","Laughter flows","And me mixed in there","This street feels so warm"]},
+        {section:"Chorus",lines:["Is it because of this place?","Because it's spring?","Or maybe","Just because it's today?","By the side of a good person","Spring feels more like spring","Today felt so much warmer","Than yesterday"]},
+        {section:"Verse 3",lines:["Through the sound of rain","I can hear your voice","You're not even saying anything","And yet I keep leaning in to listen","Getting wet is okay","Because this moment is so good","You can stop for a moment","Just this much"]},
+        {section:"Bridge",lines:["A night lonely yet together","Over a pouring season","A small umbrella meant for you","Is about to open","Without saying anything","We're looking at the same thing","Even without seeing it","The same sound comes out"]},
+        {section:"Outro",lines:["When this rain stops","Another sky will come","But today's rain","I actually love","The time we've been waiting for","Like the Tokyo night air","Our spring","Will only grow deeper"]}
+      ]
+    }
+  },
+  {
+    num:8, titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Pop Ballad)",
+    duration:"3:15", tags:["ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/8.5.The.First.Scent.of.May_pop.ballad.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["봄비가 내리네","여긴 생각보다 차가워","근데 우산 없이도","왠지 즐거워보여"]},
+        {section:"2절",lines:["젖은 거리 위로","웃음이 흐르고","그 속에 섞인 나는","이 거리가 포근해"]},
+        {section:"후렴",lines:["여기여서 인지","봄이어서 인지","아니면, 그냥","오늘이어서인지","좋은 사람 곁에선","봄이 좀더 봄같아","오늘이 어제보다","무척 따뜻했어"]},
+        {section:"3절",lines:["빗소리 사이로","니 목소리가 들려","아무 말 아닌데","자꾸 귀 기울이게 돼","젖어도 괜찮아","이 순간이 좋으니까","잠깐 멈춰도 돼","딱 이만큼만"]},
+        {section:"브리지",lines:["외롭지만 함께하는 밤,","쏟아지는 계절 위에","널 위한 작은 우산이","펼쳐지려 해","말하지 않아도","같은 걸 보고 있어","보이지 않아도","같은 소리가 나와"]},
+        {section:"아웃트로",lines:["이 비가 그치면","또 다른 하늘이 오겠지","근데 오늘 이 비가","오히려 좋아","기다려온 시간,","도쿄 밤공기처럼","우리의 봄은","더 짙어질거야"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["La lluvia de primavera cae","Aquí hace más frío de lo que pensaba","Pero incluso sin paraguas","Por alguna razón, parece alegría"]},
+        {section:"Verso 2",lines:["Sobre las calles mojadas","La risa fluye","Y yo mezclado allí","Esta calle se siente cálida"]},
+        {section:"Estribillo",lines:["¿Es por este lugar?","¿Porque es primavera?","¿O quizás","Solo porque es hoy?","Al lado de una buena persona","La primavera parece más primavera","Hoy fue tan mucho más cálido","Que ayer"]},
+        {section:"Verso 3",lines:["Entre el sonido de la lluvia","Puedo escuchar tu voz","No estás diciendo nada","Y sin embargo sigo inclinando el oído","Mojarse está bien","Porque este momento es tan bueno","Puedes parar por un momento","Solo esto"]},
+        {section:"Puente",lines:["Una noche solitaria pero juntos","Sobre una estación que se derrama","Un pequeño paraguas para ti","Está a punto de abrirse","Sin decir nada","Estamos mirando lo mismo","Aunque no se vea","El mismo sonido sale"]},
+        {section:"Outro",lines:["Cuando esta lluvia pare","Vendrá otro cielo","Pero la lluvia de hoy","Me gusta incluso más","El tiempo que hemos esperado","Como el aire nocturno de Tokio","Nuestra primavera","Solo se volverá más profunda"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["Spring rain is falling","It's colder here than I thought","But even without an umbrella","Somehow it looks like joy"]},
+        {section:"Verse 2",lines:["Over the wet streets","Laughter flows","And me mixed in there","This street feels so warm"]},
+        {section:"Chorus",lines:["Is it because of this place?","Because it's spring?","Or maybe","Just because it's today?","By the side of a good person","Spring feels more like spring","Today felt so much warmer","Than yesterday"]},
+        {section:"Verse 3",lines:["Through the sound of rain","I can hear your voice","You're not even saying anything","And yet I keep leaning in to listen","Getting wet is okay","Because this moment is so good","You can stop for a moment","Just this much"]},
+        {section:"Bridge",lines:["A night lonely yet together","Over a pouring season","A small umbrella meant for you","Is about to open","Without saying anything","We're looking at the same thing","Even without seeing it","The same sound comes out"]},
+        {section:"Outro",lines:["When this rain stops","Another sky will come","But today's rain","I actually love","The time we've been waiting for","Like the Tokyo night air","Our spring","Will only grow deeper"]}
+      ]
+    }
+  },
+  {
+    num:9, titleKr:"春の路地先", titleEn:"봄의 길목 어귀에서",
+    duration:"3:13", tags:["j-indie","neo-classical"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/9.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["오월의 햇살이 뻗어","도쿄의 골목 끝까지 닿는다","그 빛 아래서","너는 아직도 꿈을 다시 쥐고 있구나"]},
+        {section:"2절",lines:["무너질 것 같던 날에도","제대로 출근했잖아","그게 얼마나 대단한 일인지","너희는 모르는 것 같아"]},
+        {section:"후렴",lines:["어릴 때 그렸던 그림","아직 버리지 않았구나","스물을 향해 일곱 해를 달려왔어","구겨졌어도 진짜니까"]},
+        {section:"3절",lines:["사람들 물결에 휩쓸려","깎이고, 또 깎이면서","어느새 넓어지는 게","살아간다는 거겠지"]},
+        {section:"브리지",lines:["울고 싶던 저녁에","억지로 웃은 적도 있잖아","그래도 그 자리에 계속 있었다는 것만으로","충분하고도 남아","지쳐도 버텨내는 밤은","착실히 쌓여가고 있어","아무도 봐주지 않아도","너 안에서 자라고 있으니까"]},
+        {section:"4절",lines:["전부 이루어지지 않아도","꿈꿨던 것들은 남아","그 흔적이 분명","너를 계속 만들어나갈 거야","함께 웃던 날보다","같이 버텨낸 날이 더 많아도","그렇기에 우리는","진짜라고 생각해"]},
+        {section:"아웃트로",lines:["이 도시가 너희를 다 이해해주지 않아도","나는 알고 있어, 너희의 봄이 어디에 있는지","기다리지 않아도 돼","봄은 이미 와 있으니까","지금 있는 이 자리","그게 전부야"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["La luz de mayo se extiende","Llegando hasta el final de los callejones de Tokio","Bajo esa luz","Todavía estás aferrando de nuevo tu sueño"]},
+        {section:"Verso 2",lines:["Incluso en los días en que ibas a derrumbarte","Igual fuiste, ¿verdad?","Lo increíble que fue eso","Probablemente ni siquiera te das cuenta"]},
+        {section:"Estribillo",lines:["El dibujo que hiciste de niño","Todavía no lo has tirado","Corriendo siete años hacia los veinte","Aunque arrugado, es lo real"]},
+        {section:"Verso 3",lines:["Zarandeado por las olas de gente","Desgastado, y desgastado de nuevo","La forma en que te expandes sin darte cuenta","Eso debe ser lo que es vivir"]},
+        {section:"Puente",lines:["En las tardes en que querías llorar","Hubo veces que forzaste una sonrisa","Pero solo el hecho de que te quedaste — en ese lugar","Es más que suficiente","Las noches en que aguantaste el agotamiento","Se van acumulando correctamente","Aunque nadie esté mirando","Porque está creciendo dentro de ti"]},
+        {section:"Verso 4",lines:["Aunque no todo se cumpla","Lo que soñaste permanece","Esa huella con seguridad","Seguirá haciéndote quien eres","Más días de aguantar juntos","Que días de reír juntos","Por eso precisamente somos","Lo real, creo"]},
+        {section:"Outro",lines:["Aunque esta ciudad no te entienda completamente","Yo sé dónde está tu primavera","No necesitas esperar","La primavera ya ha llegado","El lugar donde estás ahora mismo","Eso lo es todo"]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["The May sunlight stretches","Reaching to the end of Tokyo's alleyways","Under that light","You're still holding your dream again"]},
+        {section:"Verse 2",lines:["Even on the days you were about to fall apart","You still showed up, didn't you?","How incredible that was","You probably don't even realize"]},
+        {section:"Chorus",lines:["The drawing you made as a child","You still haven't thrown it away","Running seven years toward twenty","Even crumpled, it's the real thing"]},
+        {section:"Verse 3",lines:["Tossed by the waves of people","Worn down, and worn down again","The way you expand without noticing","That must be what living is"]},
+        {section:"Bridge",lines:["On evenings when you wanted to cry","There were times you forced a smile","But just the fact that you stayed — in that place","That's more than enough","The nights you pushed through exhaustion","Are stacking up properly","Even if no one is watching","Because it's growing inside you"]},
+        {section:"Verse 4",lines:["Even if not everything comes true","What you dreamed of remains","That trace will surely","Keep making you who you are","More days of enduring together","Than days of laughing together","That's exactly why we","Are the real thing, I think"]},
+        {section:"Outro",lines:["Even if this city doesn't understand you completely","I know where your spring is","You don't need to wait","Spring has already come","The place where you are right now","That's everything"]}
+      ]
+    }
+  },
+  {
+    num:10, titleKr:"Viento de Magallanes", titleEn:"마가야네스의 바람",
+    duration:"3:04", tags:["world"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/10.Viento.de.Magallanes.mp4",
+    lyrics:{
+      ko:[
+        {section:"1절",lines:["마가야네스의 바람이여","내 이름을 부르는구나","지도의 끝자락에서","우리는 여기 있다"]},
+        {section:"2절",lines:["뒤돌아보지 않는 오후","시선을 돌리지 않고","바람 사이 갈매기들","우리처럼 자유롭게"]},
+        {section:"후렴",lines:["남쪽 별자리로 계절을 읽고","해협의 바람결로 내일을 셀 수 있어","세상의 소음은 닿지 않아","우리의 침묵이 목소리","저 밖에 넘쳐흐르는 것들","여기선 필요 없어"]},
+        {section:"3절",lines:["바람은 차갑고 하늘은 회색이어도","우리의 온기는 더 깊어져","일 년 내내 추위가 계속돼도","우리 가슴은 더 따뜻해"]},
+        {section:"브리지",lines:["내 눈빛은 꺼지지 않아","겨울도 막을 수 없어","여기, 심장이 불타오르고","추위 속에 더 강해져","세상이 보지 못하는 재능들","이 하늘 아래 잠들어 있어","진실의 냄새를 품은 영혼","진짜 사람들의 냄새"]},
+        {section:"4절",lines:["우리의 웃음 속에 세계가 담기고","우리 동네에 우주가 있어","가장 큰 꿈은 여기서 태어나","끝자락에서, 여기서","잊혀진 게 아니야","멀리 있기에 자유로운 것","바람이 강할수록","뿌리는 더 깊이 내린다"]},
+        {section:"아웃트로",lines:["이제 날아오를 시간이 왔어","마침내 날개를 펼칠 때","여기에서, 온 세계로","끝자락에서, 중심으로","끝자락의 꽃은 모든 꽃보다 오래 피어","아무도 피어나는 걸 보지 못해도","아무도 잊지 않아","우리의 오늘, 우리의 영원"]}
+      ],
+      es:[
+        {section:"Verso 1",lines:["Viento de Magallanes,","llamas mi nombre.","Último punto del mapa —","aquí estamos nosotros."]},
+        {section:"Verso 2",lines:["Tarde sin mirar atrás,","sin volver la vista.","Gaviotas entre el viento,","libres como nosotros."]},
+        {section:"Estribillo",lines:["Por estrellas del sur leemos las estaciones.","Por la brisa del estrecho contamos el mañana.","El ruido del mundo no llega —","nuestro silencio es voz.","Lo que sobra allá afuera,","aquí no nos hace falta."]},
+        {section:"Verso 3",lines:["Frío el viento, gris el cielo,","más hondo aún nuestro calor.","Un año entero de frío —","más cálido es nuestro pecho."]},
+        {section:"Puente",lines:["Mi mirada nunca se apaga,","ni el invierno la detiene.","Arde el corazón aquí,","más fuerte con el frío.","Talentos que el mundo no ve,","dormidos bajo este cielo.","Alma que huele a verdad,","a gente de verdad."]},
+        {section:"Verso 4",lines:["En nuestra risa cabe el mundo,","en nuestro barrio, el universo.","El sueño más grande nace aquí,","en el último confín.","No olvidados —","libres por estar lejos.","Las raíces van más hondo","cuando el viento es más fuerte."]},
+        {section:"Outro",lines:["Llegó el momento de volar,","de abrir las alas al fin.","Desde aquí, al mundo entero —","desde el confín, al centro.","La flor del confín dura más que todas.","Nadie la ve crecer —","pero nadie la olvida.","Nuestro hoy, nuestro siempre."]}
+      ],
+      en:[
+        {section:"Verse 1",lines:["Wind of Magallanes,","you call my name.","At the final point of the map —","here we are."]},
+        {section:"Verse 2",lines:["An afternoon without looking back,","without turning our gaze.","Seagulls among the wind,","free, like us."]},
+        {section:"Chorus",lines:["By the southern stars we read the seasons.","By the breeze of the strait we count tomorrow.","The noise of the world doesn't reach here —","our silence is a voice.","What overflows out there,","we don't need it here."]},
+        {section:"Verse 3",lines:["Cold the wind, gray the sky,","yet our warmth goes deeper.","A whole year of cold —","and our hearts grow warmer."]},
+        {section:"Bridge",lines:["My gaze never goes out,","not even winter can stop it.","Here the heart burns,","growing stronger in the cold.","Talents the world doesn't see,","sleeping under this sky.","A soul that smells of truth,","the scent of real people."]},
+        {section:"Verse 4",lines:["In our laughter the world fits,","in our neighborhood, the universe.","The greatest dream is born here,","at the far edge, right here.","Not forgotten —","free because we are far.","The roots go deeper","when the wind is stronger."]},
+        {section:"Outro",lines:["The time to fly has come,","to finally open our wings.","From here, to the whole world —","from the edge, to the center.","The flower of the far edge lasts longest of all.","Nobody sees it bloom —","but nobody forgets it.","Our today, our always."]}
+      ]
+    }
+  }
+];
+
+const TAG_LABEL={"k-indie":"K-인디","ballad":"발라드","jazz":"재즈","neo-classical":"네오클래시컬","j-indie":"J-인디","world":"월드뮤직"};
+let currentIdx=-1,isPlaying=false,lyricsOpen=false,currentLang='ko';
+let repeatMode=false, playAllMode=false;
+const video=document.getElementById('hidden-video');
+
+function renderTracks(filter){
+  const c=document.getElementById('track-container');c.innerHTML='';
+  TRACKS.forEach((t,i)=>{
+    if(filter!=='all'&&!t.tags.includes(filter))return;
+    const row=document.createElement('div');
+    row.className='track-row'+(i===currentIdx?' playing':'');
+    row.dataset.idx=i;row.onclick=()=>playTrack(i);
+    row.innerHTML=`<div class="track-num"><span class="num-label">${t.num}</span><span class="playing-anim"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></span></div><div class="track-info"><div class="track-title-kr">${t.titleKr}</div><div class="track-title-en">${t.titleEn}</div></div><div class="track-tags">${t.tags.map(g=>`<span class="tag">${TAG_LABEL[g]||g}</span>`).join('')}</div><div class="track-duration">${t.duration}</div>`;
+    c.appendChild(row);
+  });
+}
+
+function playTrack(idx){
+  currentIdx=idx;const t=TRACKS[idx];
+  video.src=t.src;video.volume=parseFloat(document.getElementById('vol-slider').value);
+  video.play();isPlaying=true;updateUI();if(lyricsOpen)renderLyrics();
+}
+function togglePlay(){
+  if(currentIdx<0){playTrack(0);return;}
+  if(isPlaying){video.pause();isPlaying=false;}else{video.play();isPlaying=true;}updateUI();
+}
+function prevTrack(){playTrack(currentIdx>0?currentIdx-1:TRACKS.length-1);}
+function nextTrack(){playTrack((currentIdx+1)%TRACKS.length);}
+
+// ended: 반복/전체재생 모드 반영
+video.addEventListener('ended',()=>{
+  const isLast = currentIdx === TRACKS.length - 1;
+  if(repeatMode){
+    // 반복: 마지막곡 끝나면 1번으로
+    playTrack(isLast ? 0 : currentIdx + 1);
+  } else if(playAllMode){
+    // 전체재생: 마지막곡 끝나면 정지
+    if(isLast){ isPlaying=false; updateUI(); }
+    else { playTrack(currentIdx + 1); }
+  } else {
+    // 기본: 다음곡 자동재생
+    playTrack((currentIdx+1)%TRACKS.length);
+  }
+});
+
+// 전체재생 버튼
+function playAll(){
+  playAllMode=true; repeatMode=false;
+  document.getElementById('play-all-btn').classList.add('active');
+  document.getElementById('repeat-btn').classList.remove('active');
+  playTrack(0);
+}
+
+// 반복재생 토글
+function toggleRepeat(){
+  repeatMode=!repeatMode;
+  if(repeatMode){ playAllMode=false; document.getElementById('play-all-btn').classList.remove('active'); }
+  document.getElementById('repeat-btn').classList.toggle('active', repeatMode);
+  document.getElementById('repeat-btn').textContent = repeatMode ? '↺ 반복 ON' : '↺ 반복';
+}
+
+video.addEventListener('timeupdate',()=>{
+  if(!video.duration)return;
+  document.getElementById('progress-fill').style.width=(video.currentTime/video.duration*100)+'%';
+  document.getElementById('time-cur').textContent=fmt(video.currentTime);
+  document.getElementById('time-total').textContent=fmt(video.duration);
+});
+function seekTo(e){const r=e.currentTarget.getBoundingClientRect();if(video.duration)video.currentTime=((e.clientX-r.left)/r.width)*video.duration;}
+function setVolume(v){video.volume=parseFloat(v);}
+function fmt(s){return Math.floor(s/60)+':'+Math.floor(s%60).toString().padStart(2,'0');}
+
+function updateUI(){
+  document.querySelectorAll('.track-row').forEach(r=>r.classList.toggle('playing',parseInt(r.dataset.idx)===currentIdx));
+  const t=TRACKS[currentIdx];
+  document.getElementById('player-title').textContent=t?t.titleKr:'—';
+  document.getElementById('player-title-en').textContent=t?t.titleEn:'';
+  document.getElementById('play-btn').innerHTML=isPlaying?'&#9646;&#9646;':'&#9654;';
+}
+function filterTracks(tag,btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderTracks(tag);
+}
+function toggleLyrics(){lyricsOpen?closeLyrics():openLyrics();}
+function openLyrics(){
+  lyricsOpen=true;
+  document.getElementById('lyrics-panel').classList.add('open');
+  document.getElementById('main').classList.add('lo');
+  document.getElementById('player-bar').classList.add('lo');
+  const btn=document.getElementById('lyrics-toggle-btn');btn.classList.add('active');btn.textContent='가사 닫기';
+  renderLyrics();
+}
+function closeLyrics(){
+  lyricsOpen=false;
+  document.getElementById('lyrics-panel').classList.remove('open');
+  document.getElementById('main').classList.remove('lo');
+  document.getElementById('player-bar').classList.remove('lo');
+  const btn=document.getElementById('lyrics-toggle-btn');btn.classList.remove('active');btn.textContent='가사 보기';
+}
+function switchLang(lang,btn){
+  currentLang=lang;
+  document.querySelectorAll('.lang-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderLyrics();
+}
+function renderLyrics(){
+  const body=document.getElementById('lyrics-body');
+  if(currentIdx<0){body.innerHTML='<div class="no-lyrics">곡을 선택하면<br>가사가 표시됩니다</div>';return;}
+  const t=TRACKS[currentIdx];
+  document.getElementById('lp-title').textContent=t.titleKr;
+  document.getElementById('lp-sub').textContent=t.titleEn;
+  const verses=t.lyrics[currentLang]||[];
+  const cls=currentLang==='en'?' en':currentLang==='es'?' es':'';
+  body.innerHTML=verses.map(v=>`<div class="lyric-verse"><span class="lyric-section-tag">${v.section}</span>${v.lines.map(l=>`<div class="lyric-line${cls}">${l}</div>`).join('')}</div>`).join('');
+}
+renderTracks('all');
+</script>
+</body>
+</html>
