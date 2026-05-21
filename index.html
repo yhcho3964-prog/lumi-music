@@ -212,11 +212,7 @@
       </div>
       <div class="lyrics-track-name" id="lp-title">—</div>
       <div class="lyrics-track-sub"  id="lp-sub"></div>
-      <div class="lang-tabs">
-        <button class="lang-tab active" onclick="switchLang('ko',this)">한국어</button>
-        <button class="lang-tab"       onclick="switchLang('es',this)">Español</button>
-        <button class="lang-tab"       onclick="switchLang('en',this)">English</button>
-      </div>
+      <div class="lang-tabs" id="lang-tabs"></div>
     </div>
     <div class="lyrics-body" id="lyrics-body">
       <div class="no-lyrics">곡을 선택하면<br>가사가 표시됩니다</div>
@@ -224,7 +220,7 @@
   </div>
 </div>
 
-<video id="hidden-video" preload="none"></video>
+<audio id="hidden-video" preload="none" playsinline webkit-playsinline x-webkit-airplay="allow"></audio>
 
 <div id="player-bar">
   <!-- 1행: 곡정보 + 컨트롤 + 모드버튼 + 가사 -->
@@ -259,7 +255,7 @@
 <script>
 const TRACKS = [
   {
-    num:1, titleKr:"분홍 가랑비", titleEn:"Pink Rain",
+    num:1, origLang:"ko", titleKr:"분홍 가랑비", titleEn:"Pink Rain",
     duration:"3:52", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/1.Pink.Rain.mp4",
     lyrics:{
       ko:[
@@ -286,7 +282,7 @@ const TRACKS = [
     }
   },
   {
-    num:2, titleKr:"벚꽃 하루 엔딩", titleEn:"Flower Ending",
+    num:2, origLang:"ko", titleKr:"벚꽃 하루 엔딩", titleEn:"Flower Ending",
     duration:"4:10", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/2.Flower.Ending.mp4",
     lyrics:{
       ko:[
@@ -313,7 +309,7 @@ const TRACKS = [
     }
   },
   {
-    num:3, titleKr:"나의 오아시스", titleEn:"My Oasis",
+    num:3, origLang:"ko", titleKr:"나의 오아시스", titleEn:"My Oasis",
     duration:"3:38", tags:["neo-classical","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/3.My.Oasis.mp4",
     lyrics:{
       ko:[
@@ -343,7 +339,7 @@ const TRACKS = [
     }
   },
   {
-    num:4, titleKr:"4월의 재회", titleEn:"April Reunion",
+    num:4, origLang:"ko", titleKr:"4월의 재회", titleEn:"April Reunion",
     duration:"4:05", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/4.4.April.Reunion.mp4",
     lyrics:{
       ko:[
@@ -370,7 +366,7 @@ const TRACKS = [
     }
   },
   {
-    num:5, titleKr:"연두빛 날개", titleEn:"Green Wings",
+    num:5, origLang:"ko", titleKr:"연두빛 날개", titleEn:"Green Wings",
     duration:"3:45", tags:["k-indie"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/5.Green.Wings.mp4",
     lyrics:{
       ko:[
@@ -400,7 +396,7 @@ const TRACKS = [
     }
   },
   {
-    num:6, titleKr:"4월의 흔적", titleEn:"April Memory",
+    num:6, origLang:"ko", titleKr:"4월의 흔적", titleEn:"April Memory",
     duration:"3:12", tags:["k-indie","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/6.4.April.Memory.mp4",
     lyrics:{
       ko:[
@@ -430,7 +426,7 @@ const TRACKS = [
     }
   },
   {
-    num:7, titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Jazz)",
+    num:7, origLang:"ko", titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Jazz)",
     duration:"3:20", tags:["jazz"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/7.5.The.First.Scent.of.May_Jazz.mp4",
     lyrics:{
       ko:[
@@ -460,7 +456,7 @@ const TRACKS = [
     }
   },
   {
-    num:8, titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Pop Ballad)",
+    num:8, origLang:"ko", titleKr:"5월의 첫 향기", titleEn:"The First Scent of May (Pop Ballad)",
     duration:"3:15", tags:["ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/8.5.The.First.Scent.of.May_pop.ballad.mp4",
     lyrics:{
       ko:[
@@ -490,7 +486,7 @@ const TRACKS = [
     }
   },
   {
-    num:9, titleKr:"春の路地先", titleEn:"봄의 길목 어귀에서",
+    num:9, origLang:"ja", titleKr:"春の路地先", titleEn:"봄의 길목 어귀에서",
     duration:"3:13", tags:["j-indie","neo-classical"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/9.mp4",
     lyrics:{
       ko:[
@@ -523,7 +519,7 @@ const TRACKS = [
     }
   },
   {
-    num:10, titleKr:"Viento de Magallanes", titleEn:"마가야네스의 바람",
+    num:10, origLang:"es", titleKr:"Viento de Magallanes", titleEn:"마가야네스의 바람",
     duration:"3:04", tags:["world"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/10.Viento.de.Magallanes.mp4",
     lyrics:{
       ko:[
@@ -557,7 +553,7 @@ const TRACKS = [
   }
   ,
   {
-    num:11, titleKr:"엘리의 하늘", titleEn:"Cielo de Ely",
+    num:11, origLang:"es", titleKr:"엘리의 하늘", titleEn:"Cielo de Ely",
     duration:"3:34", tags:["world","ballad"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/11.Cielo.de.Ely.mp4",
     lyrics:{
       ko:[
@@ -617,10 +613,27 @@ function renderTracks(filter){
   });
 }
 
+// ── Media Session API (잠금화면 컨트롤 + 백그라운드 재생 유지) ──
+function updateMediaSession(t){
+  if(!('mediaSession' in navigator))return;
+  navigator.mediaSession.metadata=new MediaMetadata({
+    title: t.titleKr,
+    artist: 'LU:MI',
+    album: '2025 Spring Collection',
+    artwork:[{src:'https://lumi-music.netlify.app/favicon.ico',sizes:'96x96',type:'image/x-icon'}]
+  });
+  navigator.mediaSession.setActionHandler('play',()=>{video.play();isPlaying=true;updateUI();});
+  navigator.mediaSession.setActionHandler('pause',()=>{video.pause();isPlaying=false;updateUI();});
+  navigator.mediaSession.setActionHandler('previoustrack',prevTrack);
+  navigator.mediaSession.setActionHandler('nexttrack',nextTrack);
+  navigator.mediaSession.setActionHandler('seekto',(d)=>{if(video.duration)video.currentTime=d.seekTime;});
+}
+
 function playTrack(idx){
   currentIdx=idx;const t=TRACKS[idx];
   video.src=t.src;video.volume=parseFloat(document.getElementById('vol-slider').value);
-  video.play();isPlaying=true;updateUI();if(lyricsOpen)renderLyrics();
+  currentLang=t.origLang||'ko';
+  video.play();isPlaying=true;updateUI();updateMediaSession(t);renderLangTabs();if(lyricsOpen)renderLyrics();
 }
 function togglePlay(){
   if(currentIdx<0){playTrack(0);return;}
@@ -677,6 +690,7 @@ function updateUI(){
   document.getElementById('player-title').textContent=t?t.titleKr:'—';
   document.getElementById('player-title-en').textContent=t?t.titleEn:'';
   document.getElementById('play-btn').innerHTML=isPlaying?'&#9646;&#9646;':'&#9654;';
+  if('mediaSession' in navigator)navigator.mediaSession.playbackState=isPlaying?'playing':'paused';
 }
 function filterTracks(tag,btn){
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
@@ -698,6 +712,23 @@ function closeLyrics(){
   document.getElementById('player-bar').classList.remove('lo');
   const btn=document.getElementById('lyrics-toggle-btn');btn.classList.remove('active');btn.textContent='가사 보기';
 }
+const LANG_LABEL={ko:'한국어',en:'English',es:'Español',ja:'日本語'};
+const LANG_ORDER=['ko','en','es','ja'];
+
+function renderLangTabs(){
+  const container=document.getElementById('lang-tabs');
+  if(!container)return;
+  if(currentIdx<0){container.innerHTML='';return;}
+  const t=TRACKS[currentIdx];
+  const orig=t.origLang||'ko';
+  const available=Object.keys(t.lyrics);
+  // origLang 먼저, 이후 고정순서
+  const ordered=[orig,...LANG_ORDER.filter(l=>l!==orig&&available.includes(l))];
+  container.innerHTML=ordered.map(l=>
+    `<button class="lang-tab${l===currentLang?' active':''}" onclick="switchLang('${l}',this)">${LANG_LABEL[l]||l}</button>`
+  ).join('');
+}
+
 function switchLang(lang,btn){
   currentLang=lang;
   document.querySelectorAll('.lang-tab').forEach(b=>b.classList.remove('active'));
@@ -709,6 +740,7 @@ function renderLyrics(){
   const t=TRACKS[currentIdx];
   document.getElementById('lp-title').textContent=t.titleKr;
   document.getElementById('lp-sub').textContent=t.titleEn;
+  renderLangTabs();
   const verses=t.lyrics[currentLang]||[];
   const cls=currentLang==='en'?' en':currentLang==='es'?' es':'';
   body.innerHTML=verses.map(v=>`<div class="lyric-verse"><span class="lyric-section-tag">${v.section}</span>${v.lines.map(l=>`<div class="lyric-line${cls}">${l}</div>`).join('')}</div>`).join('');
