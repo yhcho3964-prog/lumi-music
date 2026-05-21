@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjoiTFU6TUkgTXVzaWMgTGlicmFyeSIsCiAgInNob3J0X25hbWUiOiJMVTpNSSIsCiAgInN0YXJ0X3VybCI6Ii8iLAogICJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiIjMGEwYTBmIiwKICAidGhlbWVfY29sb3IiOiIjMGEwYTBmIiwKICAiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vbHVtaS1tdXNpYy5uZXRsaWZ5LmFwcC9mYXZpY29uLmljbyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS94LWljb24ifV0KfQ==">
 <title>LU:MI — Music Library</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
@@ -113,7 +114,7 @@
   .lyric-line.en{font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:#d0ccc4;}
   .lyric-line.es{color:#ccc8bf;}
   .no-lyrics{color:var(--muted);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;text-align:center;margin-top:60px;line-height:2.2;}
-  #hidden-video{display:none;}
+  #hidden-video{position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;}
 
   @media(max-width:900px){
     :root{--lyrics-w:100vw; --player-h:110px;}
@@ -220,7 +221,7 @@
   </div>
 </div>
 
-<audio id="hidden-video" preload="none" playsinline webkit-playsinline x-webkit-airplay="allow"></audio>
+<audio id="hidden-video" preload="metadata" playsinline webkit-playsinline x-webkit-airplay="allow"></audio>
 
 <div id="player-bar">
   <!-- 1행: 곡정보 + 컨트롤 + 모드버튼 + 가사 -->
@@ -489,6 +490,15 @@ const TRACKS = [
     num:9, origLang:"ja", titleKr:"春の路地先", titleEn:"봄의 길목 어귀에서",
     duration:"3:13", tags:["j-indie","neo-classical"], src:"https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/9.mp4",
     lyrics:{
+      ja:[
+        {section:"1番",lines:["五月の陽差しが伸びて","東京の路地の果てまで届く","あの光の下で","まだ夢を握り直してるね"]},
+        {section:"2番",lines:["崩れそうな日も","ちゃんと出勤してたじゃないか","それがどれほど凄いことか","きみたちは気づいてないみたい"]},
+        {section:"サビ",lines:["子どもの頃に描いた絵","まだ捨ててなかったんだね","twenty めざして seven 年 走ってきた","くしゃくしゃでも本物だから"]},
+        {section:"3番",lines:["人の波に揉まれて","削れて、また削れながら","気づかぬうちに広がるのが","生きるってことなんだろうな"]},
+        {section:"ブリッジ",lines:["泣きたい夕暮れに","無理やり笑ったこともあるよね","それでもその場所に居続けたこと","それだけで十分すぎるくらい","疲れても踏ん張る夜は","ちゃんと積み重なってる","誰も見てくれなくても","きみの中で育ってるから"]},
+        {section:"4番",lines:["全部叶わなくても","夢見たことは残るよ","その痕跡がきっと","きみをつくり続けていく","笑い合った日より","共に耐えた日の方が多くても","だからこそ私たちは","本物なんだと思う"]},
+        {section:"アウトロ",lines:["この街がきみたちを","全部わかってくれなくても","私はわかってるよ","きみたちの春がどこにあるか","待たなくていいよ","春はもう来てるから","今いるこの場所","それが全てだよ"]}
+      ],
       ko:[
         {section:"1절",lines:["오월의 햇살이 뻗어","도쿄의 골목 끝까지 닿는다","그 빛 아래서","너는 아직도 꿈을 다시 쥐고 있구나"]},
         {section:"2절",lines:["무너질 것 같던 날에도","제대로 출근했잖아","그게 얼마나 대단한 일인지","너희는 모르는 것 같아"]},
@@ -629,15 +639,38 @@ function updateMediaSession(t){
   navigator.mediaSession.setActionHandler('seekto',(d)=>{if(video.duration)video.currentTime=d.seekTime;});
 }
 
+// AudioContext — iOS 백그라운드 재생 유지용
+let audioCtx=null;
+function ensureAudioContext(){
+  if(!audioCtx){
+    try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  }
+  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+}
+
 function playTrack(idx){
   currentIdx=idx;const t=TRACKS[idx];
-  video.src=t.src;video.volume=parseFloat(document.getElementById('vol-slider').value);
   currentLang=t.origLang||'ko';
-  video.play();isPlaying=true;updateUI();updateMediaSession(t);renderLangTabs();if(lyricsOpen)renderLyrics();
+  ensureAudioContext();
+  video.src=t.src;
+  video.volume=parseFloat(document.getElementById('vol-slider').value);
+  const p=video.play();
+  if(p!==undefined){
+    p.then(()=>{isPlaying=true;updateUI();updateMediaSession(t);renderLangTabs();if(lyricsOpen)renderLyrics();})
+     .catch(e=>{console.warn('play() blocked:',e);isPlaying=false;updateUI();});
+  }else{
+    isPlaying=true;updateUI();updateMediaSession(t);renderLangTabs();if(lyricsOpen)renderLyrics();
+  }
 }
 function togglePlay(){
   if(currentIdx<0){playTrack(0);return;}
-  if(isPlaying){video.pause();isPlaying=false;}else{video.play();isPlaying=true;}updateUI();
+  if(isPlaying){video.pause();isPlaying=false;updateUI();}
+  else{
+    ensureAudioContext();
+    const p=video.play();
+    if(p!==undefined){p.then(()=>{isPlaying=true;updateUI();}).catch(e=>console.warn(e));}
+    else{isPlaying=true;updateUI();}
+  }
 }
 function prevTrack(){playTrack(currentIdx>0?currentIdx-1:TRACKS.length-1);}
 function nextTrack(){playTrack((currentIdx+1)%TRACKS.length);}
@@ -746,6 +779,20 @@ function renderLyrics(){
   body.innerHTML=verses.map(v=>`<div class="lyric-verse"><span class="lyric-section-tag">${v.section}</span>${v.lines.map(l=>`<div class="lyric-line${cls}">${l}</div>`).join('')}</div>`).join('');
 }
 renderTracks('all');
+
+// 백그라운드→포그라운드 복귀 시 재생 복구
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && isPlaying && video.paused){
+    ensureAudioContext();
+    video.play().catch(e=>console.warn('resume failed:',e));
+  }
+});
+
+// iOS 포커스 복귀 시 AudioContext 재개
+window.addEventListener('focus',()=>{
+  if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
+  if(isPlaying&&video.paused) video.play().catch(()=>{});
+});
 </script>
 </body>
 </html>
