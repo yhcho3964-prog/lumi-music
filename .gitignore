@@ -1,9 +1,12 @@
-drop/processed/
-drop/*.mp3
-drop/*.docx
-drop/*.txt
-drop/*.lrc
-drop/registration.json
+# drop/ 안의 모든 곡 폴더와 직접 떨어진 작업 파일은 git 추적 제외.
+# README.md 만 커밋 추적.
+drop/*
+!drop/README.md
+!drop/.gitignore
+
+# Word 잠금 파일 (열려있는 동안 생성)
 ~$*.docx
+
+# Python
 __pycache__/
 *.pyc

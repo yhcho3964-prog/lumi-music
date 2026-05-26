@@ -9,14 +9,25 @@
 - "등록해줘", "신곡 등록", "이 곡 올려줘", "register"
 - 별다른 지시 없이 `drop/` 폴더에 새 MP3 + 가사 파일을 두고 메시지를 보내는 경우
 
-### 입력
-- `drop/` 폴더 안에 **MP3 1개 + Word 가사 1개** (.docx)
-- 파일명은 보통 `원제 (보조제).mp3` 형식 — 보조제가 비어 있으면 적절히 번역해서 제안
+### 입력 (하위폴더당 한 곡)
+```
+drop/
+├─ 곡제목 A/
+│  ├─ Song A (Sub).mp3
+│  └─ Song A (Sub)_가사.docx
+├─ 곡제목 B/
+│  └─ ...
+└─ README.md
+```
+- 각 하위폴더 = 한 곡. 폴더명은 사용자가 알아보기 쉬운 한글 곡명 추천.
+- 폴더 안에 **MP3 1개 + Word 가사 1개** (.docx).
+- 파일명은 보통 `원제 (보조제).mp3` 형식 — 보조제가 비어 있으면 적절히 번역해서 제안.
+- 여러 하위폴더가 있으면 발견 순서대로 **순차 등록**.
 
 ### Claude가 해야 할 일 (대화 안에서 수행)
 
-1. **drop/ 폴더 스캔** — MP3와 .docx 가사 파일을 찾는다. 여러 개 있으면 사용자에게 어느 쌍인지 확인.
-2. **가사 추출** — `python read_docx.py "drop/<파일>.docx"` 로 텍스트 추출 후 원곡 언어 자동 감지 (한글/일본어/스페인어/영어). .docx는 Read 도구로 직접 못 읽으니 반드시 read_docx.py 경유.
+1. **drop/ 스캔** — `processed/` 와 README.md 외 모든 하위폴더 = 등록 대기 곡. 각 폴더에 대해 2~9 단계를 순차 수행. 폴더가 0개면 사용자에게 "drop/곡제목/ 안에 MP3+.docx 넣어주세요" 안내.
+2. **가사 추출** — `python read_docx.py "drop/곡제목/<파일>.docx"` 로 텍스트 추출 후 원곡 언어 자동 감지 (한글/일본어/스페인어/영어). .docx는 Read 도구로 직접 못 읽으니 반드시 read_docx.py 경유.
 3. **제목 파싱**:
    - `원제 (보조제).mp3` 패턴에서 추출
    - `titleKr` = 원곡 언어의 제목 (한국어/영어/스페인어/일본어 등 어느 것이든 가능)
@@ -36,9 +47,10 @@
 6. **태그 제안** — 가사·제목·분위기를 참고해서 다음 중 골라 제안:
    - `k-indie`, `ballad`, `jazz`, `neo-classical`, `j-indie`, `world`
    - 사용자 확인을 받고 진행
-7. **registration.json 작성** — `drop/registration.json` 으로 저장 (스키마는 register_song.py 상단 docstring 참고).
-8. **register_song.py 실행** — `python register_song.py drop/registration.json`. 스크립트가 ffprobe·gh release upload·index.html 갱신·git push·파일 정리까지 모두 수행.
+7. **registration.json 작성** — `drop/곡제목/registration.json` 으로 저장 (해당 곡 폴더 안에). `mp3_path` 는 파일명만 적어도 됨 (곡 폴더 기준 해석). 스키마는 register_song.py 상단 docstring 참고.
+8. **register_song.py 실행** — `python register_song.py "drop/곡제목/"` (폴더 인자만 줘도 안의 registration.json 자동 탐색). 스크립트가 ffprobe·gh release upload·index.html 갱신·git push·곡 폴더 통째 이동(→ drop/processed/{num}/)까지 모두 수행.
 9. **결과 보고** — 트랙 번호, GitHub Release URL, Netlify 배포 안내(30초).
+10. **다음 폴더로** — 등록 대기 폴더가 더 있으면 2번 단계로 돌아가 반복. 트랙 번호는 자동 증가 (각 호출마다 index.html 의 max num + 1).
 
 ### 사용자 확인이 필요한 단계
 - 제목 파싱 결과 (titleKr / titleEn)

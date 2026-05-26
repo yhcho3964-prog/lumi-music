@@ -3,11 +3,19 @@
 register_song.py — LU:MI 신곡 비대화형 등록 스크립트
 ====================================================
 사용법:
-    python register_song.py drop/registration.json
+    python register_song.py drop/곡제목/registration.json
+    python register_song.py drop/곡제목/                  # 폴더 인자도 OK (안의 registration.json 자동 탐색)
+
+폴더 구조:
+    drop/
+    └─ 곡제목/
+       ├─ Song (Sub).mp3
+       ├─ Song (Sub)_가사.docx
+       └─ registration.json
 
 JSON 스키마:
 {
-  "mp3_path":  "drop/Song.mp3",          # 저장소 기준 상대경로 또는 절대경로
+  "mp3_path":  "Song (Sub).mp3",         # 곡 폴더 기준 상대경로 (보통 파일명만)
   "num":       12,                        # index.html 의 다음 트랙 번호
   "origLang":  "ko",                      # ko / en / es / ja
   "titleKr":   "원곡 제목 (원문)",        # 원곡 언어의 제목
@@ -28,8 +36,8 @@ JSON 스키마:
   ② gh release upload v1.0 ← MP3 직접 업로드
   ③ index.html 의 TRACKS 배열에 새 트랙 추가
   ④ "N Tracks · 2025" 라벨 갱신
-  ⑤ git add / commit / push  → Netlify 자동 배포
-  ⑥ 처리된 파일은 drop/processed/{num}/ 으로 이동
+  ⑤ git add / commit / push  → Netlify 자동 배포 (커밋 author override)
+  ⑥ 곡 폴더(drop/곡제목/) 통째로 drop/processed/{num}/ 으로 이동
 """
 
 import os, sys, json, re, subprocess, shutil
@@ -149,11 +157,17 @@ def make_slug(cfg: dict) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        err("Usage: python register_song.py <config.json>")
+        err("Usage: python register_song.py <song_dir or registration.json>")
 
-    cfg_path = Path(sys.argv[1]).resolve()
+    arg = Path(sys.argv[1]).resolve()
+    if arg.is_dir():
+        cfg_path = arg / "registration.json"
+    else:
+        cfg_path = arg
     if not cfg_path.exists():
         err(f"Config not found: {cfg_path}")
+
+    song_dir = cfg_path.parent.resolve()
 
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
     for k in ("mp3_path","num","origLang","titleKr","titleEn","tags","lyrics"):
@@ -171,11 +185,17 @@ def main():
     if cfg["origLang"] not in REQUIRED_LANGS:
         err(f"origLang 은 {REQUIRED_LANGS} 중 하나여야 함: {cfg['origLang']}")
 
+    # mp3_path 해석: 절대경로 그대로, 상대경로는 곡 폴더(cfg 파일 위치) 기준
+    # 하위호환: 'drop/...' 처럼 REPO_DIR 기준 경로도 허용
     mp3 = Path(cfg["mp3_path"])
-    if not mp3.is_absolute():
-        mp3 = (REPO_DIR / cfg["mp3_path"]).resolve()
+    if mp3.is_absolute():
+        pass
+    elif (song_dir / mp3).exists():
+        mp3 = (song_dir / mp3).resolve()
+    elif (REPO_DIR / mp3).exists():
+        mp3 = (REPO_DIR / mp3).resolve()
     if not mp3.exists():
-        err(f"MP3 not found: {mp3}")
+        err(f"MP3 not found: tried {song_dir/cfg['mp3_path']} and {REPO_DIR/cfg['mp3_path']}")
 
     print(f"\n=== Track #{cfg['num']}: {cfg['titleKr']} ({cfg['titleEn']}) ===")
 
@@ -209,25 +229,28 @@ def main():
     ok("push 완료 → Netlify 자동 배포 시작")
 
     step("5","처리 파일 정리")
-    processed = REPO_DIR / "drop" / "processed" / str(cfg["num"])
-    processed.mkdir(parents=True, exist_ok=True)
+    processed_root = REPO_DIR / "drop" / "processed"
+    processed_root.mkdir(parents=True, exist_ok=True)
+    processed = processed_root / str(cfg["num"])
+    if processed.exists():
+        shutil.rmtree(processed)
 
     drop_dir = (REPO_DIR / "drop").resolve()
-    # MP3, MP3 canonical copy, registration.json + drop/ 안의 다른 모든 동반 파일
-    # (README.md 와 processed/ 디렉토리는 제외)
-    to_move = {mp3, upload_path, cfg_path}
-    for f in drop_dir.iterdir():
-        if f.is_dir(): continue
-        if f.name == "README.md": continue
-        to_move.add(f.resolve())
-
-    for f in to_move:
-        if f.exists():
-            dest = processed / f.name
-            if dest.exists():
-                dest.unlink()
-            shutil.move(str(f), dest)
-    ok(f"이동 완료 → drop/processed/{cfg['num']}/")
+    if song_dir.parent.resolve() == drop_dir and song_dir.name != "processed":
+        # 정상 경로: drop/곡제목/ 폴더 통째로 이동
+        # MP3 canonical copy 가 같은 폴더 안에 있으면 같이 이동됨
+        shutil.move(str(song_dir), str(processed))
+        ok(f"폴더 이동 완료 → drop/processed/{cfg['num']}/  (원본 폴더명: {song_dir.name})")
+    else:
+        # 폴백: 곡 폴더가 drop/ 직속이 아닌 경우 (테스트/특수 케이스)
+        # 개별 파일만 이동
+        processed.mkdir(parents=True, exist_ok=True)
+        for f in {mp3, upload_path, cfg_path}:
+            if f.exists():
+                dest = processed / f.name
+                if dest.exists(): dest.unlink()
+                shutil.move(str(f), dest)
+        ok(f"파일 이동 완료 → drop/processed/{cfg['num']}/")
 
     print(f"\n🎵 등록 완료!  https://lumi-music.netlify.app  (30초 후 반영)\n")
 
