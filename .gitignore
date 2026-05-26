@@ -1,7 +1,9 @@
 drop/processed/
 drop/*.mp3
+drop/*.docx
 drop/*.txt
 drop/*.lrc
 drop/registration.json
+~$*.docx
 __pycache__/
 *.pyc
