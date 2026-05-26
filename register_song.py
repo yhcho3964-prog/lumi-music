@@ -43,6 +43,10 @@ RELEASE_BASE = f"https://github.com/{GITHUB_REPO}/releases/download/{GITHUB_TAG}
 
 REQUIRED_LANGS = ("ko", "en", "es", "ja")
 
+# 전역 git 설정이 다른 사용자 이름으로 되어 있을 수 있어 commit 시 명시적으로 override
+COMMIT_NAME  = "yhcho3964-prog"
+COMMIT_EMAIL = "yhcho3964@gmail.com"
+
 def info(m): print(f"  > {m}")
 def ok(m):   print(f"  [OK] {m}")
 def err(m):  print(f"  [ERROR] {m}", file=sys.stderr); sys.exit(1)
@@ -118,9 +122,14 @@ def git_run(*args) -> subprocess.CompletedProcess:
 
 
 def git_push(title_kr: str):
+    commit_args = [
+        "-c", f"user.name={COMMIT_NAME}",
+        "-c", f"user.email={COMMIT_EMAIL}",
+        "commit", "-m", f"Add track: {title_kr}",
+    ]
     for label, args in [
         ("add",    ["add","index.html"]),
-        ("commit", ["commit","-m",f"Add track: {title_kr}"]),
+        ("commit", commit_args),
         ("push",   ["push"]),
     ]:
         r = git_run(*args)
@@ -203,7 +212,16 @@ def main():
     processed = REPO_DIR / "drop" / "processed" / str(cfg["num"])
     processed.mkdir(parents=True, exist_ok=True)
 
-    for f in {mp3, upload_path, cfg_path}:
+    drop_dir = (REPO_DIR / "drop").resolve()
+    # MP3, MP3 canonical copy, registration.json + drop/ 안의 다른 모든 동반 파일
+    # (README.md 와 processed/ 디렉토리는 제외)
+    to_move = {mp3, upload_path, cfg_path}
+    for f in drop_dir.iterdir():
+        if f.is_dir(): continue
+        if f.name == "README.md": continue
+        to_move.add(f.resolve())
+
+    for f in to_move:
         if f.exists():
             dest = processed / f.name
             if dest.exists():
