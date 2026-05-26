@@ -48,6 +48,12 @@ drop/
    - `k-indie`, `ballad`, `jazz`, `neo-classical`, `j-indie`, `world`
    - 사용자 확인을 받고 진행
 7. **registration.json 작성** — `drop/곡제목/registration.json` 으로 저장 (해당 곡 폴더 안에). `mp3_path` 는 파일명만 적어도 됨 (곡 폴더 기준 해석). 스키마는 register_song.py 상단 docstring 참고.
+7a. **원본 가사 일치 검증 (필수)** — 작성한 `registration.json` 의 `origLang` 가사가 .docx 원문과 **글자 단위로 정확히 일치** 하는지 확인. 다음을 비교:
+    - `python read_docx.py "drop/곡제목/<file>.docx"` 출력의 비어 있지 않은 라인들
+    - JSON 의 `lyrics[origLang]` 안 모든 `lines` 요소
+    - 반복되는 후렴은 한 번만 등록되므로(chorus-merge-policy), 원문의 후렴 반복은 dedup 후 비교
+    - **차이가 있으면 무조건 원문 쪽이 정답** — 아포스트로피(`'` vs `'`), 따옴표, 쉼표, 띄어쓰기, 줄바꿈, 외래어 표기 등 미세한 차이도 보존. 절대 "의미상 같으니까" 임의로 바꾸지 말 것.
+    - 번역(en/es/ja 등)은 본질상 다를 수밖에 없으니 검증 대상 아님 — 절 개수만 일치하면 됨.
 8. **register_song.py 실행** — `python register_song.py "drop/곡제목/"` (폴더 인자만 줘도 안의 registration.json 자동 탐색). 스크립트가 ffprobe·gh release upload·index.html 갱신·git push·곡 폴더 통째 이동(→ drop/processed/{num}/)까지 모두 수행.
 9. **결과 보고** — 트랙 번호, GitHub Release URL, Netlify 배포 안내(30초).
 10. **다음 폴더로** — 등록 대기 폴더가 더 있으면 2번 단계로 돌아가 반복. 트랙 번호는 자동 증가 (각 호출마다 index.html 의 max num + 1).
