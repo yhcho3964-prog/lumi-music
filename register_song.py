@@ -15,10 +15,11 @@ JSON 스키마:
   "duration":  "3:45",                    # 생략 시 ffprobe 로 자동 추출
   "tags":      ["k-indie","ballad"],
   "slug":      "Song.Title",              # 생략 시 titleEn 에서 자동 생성
-  "lyrics": {
+  "lyrics": {                             # 4개 언어 모두 필수
     "ko": [{"section":"1절","lines":["..","..",".."]}, ...],
-    "en": [...],
-    "es": [...]
+    "en": [{"section":"Verse 1","lines":[...]}, ...],
+    "es": [{"section":"Verso 1","lines":[...]}, ...],
+    "ja": [{"section":"1番","lines":[...]}, ...]
   }
 }
 
@@ -39,6 +40,8 @@ INDEX_HTML   = REPO_DIR / "index.html"
 GITHUB_REPO  = "yhcho3964-prog/lumi-music"
 GITHUB_TAG   = "v1.0"
 RELEASE_BASE = f"https://github.com/{GITHUB_REPO}/releases/download/{GITHUB_TAG}"
+
+REQUIRED_LANGS = ("ko", "en", "es", "ja")
 
 def info(m): print(f"  > {m}")
 def ok(m):   print(f"  [OK] {m}")
@@ -147,6 +150,17 @@ def main():
     for k in ("mp3_path","num","origLang","titleKr","titleEn","tags","lyrics"):
         if k not in cfg:
             err(f"Missing required JSON key: {k}")
+
+    missing_langs = [l for l in REQUIRED_LANGS if l not in cfg["lyrics"]]
+    if missing_langs:
+        err(f"lyrics 에 빠진 언어: {', '.join(missing_langs)} "
+            f"(필수: {', '.join(REQUIRED_LANGS)})")
+    empty_langs = [l for l in REQUIRED_LANGS if not cfg["lyrics"][l]]
+    if empty_langs:
+        err(f"lyrics 가 비어 있는 언어: {', '.join(empty_langs)}")
+
+    if cfg["origLang"] not in REQUIRED_LANGS:
+        err(f"origLang 은 {REQUIRED_LANGS} 중 하나여야 함: {cfg['origLang']}")
 
     mp3 = Path(cfg["mp3_path"])
     if not mp3.is_absolute():

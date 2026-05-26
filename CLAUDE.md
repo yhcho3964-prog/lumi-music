@@ -19,17 +19,20 @@
 2. **가사 추출** — `python read_docx.py "drop/<파일>.docx"` 로 텍스트 추출 후 원곡 언어 자동 감지 (한글/일본어/스페인어/영어). .docx는 Read 도구로 직접 못 읽으니 반드시 read_docx.py 경유.
 3. **제목 파싱**:
    - `원제 (보조제).mp3` 패턴에서 추출
-   - `titleKr` = 원곡 언어의 제목, `titleEn` = 보조 제목 (한국어 곡이면 영문, 외국어 곡이면 한국어)
+   - `titleKr` = 원곡 언어의 제목 (한국어/영어/스페인어/일본어 등 어느 것이든 가능)
+   - `titleEn` = 보조 제목 (한국어 원곡이면 영문, 외국어 원곡이면 한국어 번역이 일반적이나, 사용자가 명시한 보조제가 있으면 그대로)
+   - 보조제가 비어 있거나 모호하면 Claude가 적절한 번역 제목을 제안 후 사용자 확인
 4. **다음 트랙 번호 결정** — `index.html`의 `TRACKS` 배열에서 `num` 최댓값 + 1.
-5. **가사 번역** — Claude가 직접 번역해서 다음 언어를 채운다 (별도 API 호출 없음):
-   - 항상 `ko`, `en`, `es` 포함
-   - 원곡 언어가 그 외(예: `ja`)면 원곡 언어도 포함
-   - 절 구조 유지, 시적 표현 살리기
+5. **가사 번역 — 4개 언어 전부 필수** (Claude가 직접 번역, 외부 API 호출 없음):
+   - `lyrics:{}` 에 **반드시 `ko`, `en`, `es`, `ja` 4개 키 모두 존재**해야 함
+   - 원곡 언어 가사는 원문 그대로, 나머지 3개 언어는 번역
+   - 원곡 → 번역 시 절 구조와 절 개수 유지, 시적 표현·운율·감성 살리기
    - 섹션 라벨은 언어별 관례 사용:
-     - ko: `1절`, `2절`, `후렴`, `브리지`, `아웃트로`
-     - en: `Verse 1`, `Verse 2`, `Chorus`, `Bridge`, `Outro`
-     - es: `Verso 1`, `Verso 2`, `Estribillo`, `Puente`, `Outro`
-     - ja: `1番`, `2番`, `サビ`, `ブリッジ`, `アウトロ`
+     - ko: `1절`, `2절`, `3절`, `후렴`, `브리지`, `아웃트로`
+     - en: `Verse 1`, `Verse 2`, `Verse 3`, `Chorus`, `Bridge`, `Outro`
+     - es: `Verso 1`, `Verso 2`, `Verso 3`, `Estribillo`, `Puente`, `Outro`
+     - ja: `1番`, `2番`, `3番`, `サビ`, `ブリッジ`, `アウトロ`
+   - 같은 의미의 절은 같은 위치에 매핑 (예: 모든 언어에서 3번째 블록이 후렴/Chorus/Estribillo/サビ)
 6. **태그 제안** — 가사·제목·분위기를 참고해서 다음 중 골라 제안:
    - `k-indie`, `ballad`, `jazz`, `neo-classical`, `j-indie`, `world`
    - 사용자 확인을 받고 진행
@@ -80,12 +83,17 @@ lumi-music/
   tags: ["k-indie","ballad"],
   src: "https://github.com/yhcho3964-prog/lumi-music/releases/download/v1.0/12.Slug.mp3",
   lyrics: {
-    ko: [{ section:"1절", lines:["...", "..."] }, ...],
+    ko: [{ section:"1절",     lines:["...", "..."] }, ...],
     en: [{ section:"Verse 1", lines:[...] }, ...],
-    es: [{ section:"Verso 1", lines:[...] }, ...]
+    es: [{ section:"Verso 1", lines:[...] }, ...],
+    ja: [{ section:"1番",     lines:[...] }, ...]
   }
 }
 ```
+
+**중요**: 새 트랙은 위 4개 언어 키(`ko`/`en`/`es`/`ja`)를 모두 가져야 함. `register_song.py` 가 검증.
+
+기존 트랙(num 1~11) 중 일부는 ja 누락이 있으나 호환을 위해 그대로 둠. 사용자가 명시적으로 백필 요청 시에만 채움.
 
 ## 배포 도구
 
