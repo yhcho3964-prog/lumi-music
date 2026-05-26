@@ -1,0 +1,7 @@
+drop/processed/
+drop/*.mp3
+drop/*.txt
+drop/*.lrc
+drop/registration.json
+__pycache__/
+*.pyc
