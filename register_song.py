@@ -43,6 +43,11 @@ JSON 스키마:
 import os, sys, json, re, subprocess, shutil
 from pathlib import Path
 
+# Windows 기본 콘솔(cp949)에서 한글/이모지 출력 시 UnicodeEncodeError 나는 것 방지
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_DIR     = Path(__file__).parent.resolve()
 INDEX_HTML   = REPO_DIR / "index.html"
 GITHUB_REPO  = "yhcho3964-prog/lumi-music"
